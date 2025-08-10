@@ -1,0 +1,14 @@
+0 Test
+1 Test2
+2 CreateLobby
+3 JoinLobby
+4 LeaveLobby
+5 ReadyLobby
+6 PongMovePaddle
+7 PongMoveBall
+8 PongScore
+9 ---
+10 TicTacToeMoveData
+11 TicTacToeStateData
+12 ChessMoveData
+13 ChessStateData

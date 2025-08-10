@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "arcadegames_svc",
+  "version": "${mod_version}",
+  "name": "ArcadeGames SVC",
+  "description": "Игра по локальной сети, по глобальной сети...",
+  "authors": ["Alcest_M","Padej_"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/arcadegames_svc/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "me.padej.arcadegames_svc.client.ArcadeGamesClient",
+      "me.padej.arcadegames_svc.voice.ArcadeGamesClientVoice"
+    ],
+    "main": [
+      "me.padej.arcadegames_svc.ArcadeGames"
+    ],
+    "voicechat":[
+      "me.padej.arcadegames_svc.voice.ArcadeGamesClientVoice"
+    ]
+  },
+  "mixins": [
+    "arcadegames.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}",
+    "voicechat": ">=${minecraft_version}-${voicechat_api_version}"
+  }
+}

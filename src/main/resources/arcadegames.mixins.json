@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "me.padej.arcadegames_svc.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "accessor.SkullBlockEntityAccessor",
+    "inject.ItemStackMixin"
+  ],
+  "client": [
+    "inject.AnvilScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
