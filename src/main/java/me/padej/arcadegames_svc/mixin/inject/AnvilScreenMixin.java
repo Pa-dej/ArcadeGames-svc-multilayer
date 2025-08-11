@@ -21,18 +21,21 @@ public class AnvilScreenMixin {
 
         if (client.player == null || newName == null) return;
 
-        if (ArcadeGamesClient.GAMES.containsKey(newName)) {
-            UUID playerUUID = client.player.getUuid();
+        String playerName = client.player.getGameProfile().getName();
 
-            if (!ArcadeGamesClient.OWNERS.contains(playerUUID)) {
+        if (ArcadeGamesClient.GAMES.containsKey(newName)) {
+
+            boolean isOwner = ArcadeGamesClient.OWNERS.stream()
+                    .anyMatch(owner -> owner.equalsIgnoreCase(playerName));
+
+            if (!isOwner) {
                 client.player.sendMessage(Text.literal("§c[ERROR] Отказано в доступе."), true);
                 SoundLibrary.errorSound();
-
-                // Отменяем дальнейшее выполнение onRenamed
                 ci.cancel();
             }
         }
     }
+
 }
 
 

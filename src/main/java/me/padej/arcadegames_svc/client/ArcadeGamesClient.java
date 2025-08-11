@@ -19,7 +19,7 @@ import java.util.function.Function;
 public final class ArcadeGamesClient implements ClientModInitializer {
 
     public static final Map<String, Function<BlockPos, ArcadeGame>> GAMES = new HashMap<>();
-    public static final Set<UUID> OWNERS = new HashSet<>();
+    public static final Set<String> OWNERS = new HashSet<>();
 
     static {
         GAMES.put("Pong", PongScreen::new);
@@ -28,10 +28,9 @@ public final class ArcadeGamesClient implements ClientModInitializer {
     }
 
     static {
-        OWNERS.add(UUID.fromString("8babb7f5-acc8-40e5-bcff-247503d18526"));
-        OWNERS.add(UUID.fromString("06593315-c800-4c62-a360-5b36def03762"));
-        OWNERS.add(UUID.fromString("fcb83e9a-a3f3-3f7f-89d0-6640a4e78f7e")); // 0
-        OWNERS.add(UUID.fromString("7f77fd15-dee9-3fc5-84c6-4b32eed2189e")); // meh_meh_meh
+        OWNERS.add("Padej_");
+        OWNERS.add("Alcest_M");
+        OWNERS.add("meh_meh_meh");
     }
 
     @Override

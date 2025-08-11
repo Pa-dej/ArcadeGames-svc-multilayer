@@ -415,7 +415,7 @@ public class ChessScreen extends ArcadeGame {
     private void applyPendingBoard() {
         for (int y = 0; y < 8; y++) {
             for (int x = 0; x < 8; x++) {
-                if (pendingBoard[y][x] != board[y][x] && pendingBoard[y][x] != 0 && board[y][x] == 0) {
+                if (pendingBoard[y][x] != board[y][x] && pendingBoard[y][x] != 0) {
                     boolean found = false;
                     for (int fy = 0; fy < 8 && !found; fy++) {
                         for (int fx = 0; fx < 8; fx++) {
