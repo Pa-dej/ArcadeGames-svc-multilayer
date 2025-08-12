@@ -132,6 +132,8 @@ public class ChessScreen extends ArcadeGame {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
 
+        boolean isFlipped = getLocalPlayerId() == 2;
+
         // Render background and outline
         int halfW = width / 2;
         int halfH = height / 2;
@@ -152,23 +154,27 @@ public class ChessScreen extends ArcadeGame {
         );
 
         // Render board
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                int px = offsetX + x * CELL_SIZE;
-                int py = offsetY + y * CELL_SIZE;
-                int color = (x + y) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
+        for (int ry = 0; ry < 8; ry++) {
+            int ly = isFlipped ? 7 - ry : ry;
+            for (int rx = 0; rx < 8; rx++) {
+                int lx = rx;
+                int px = offsetX + rx * CELL_SIZE;
+                int py = offsetY + ry * CELL_SIZE;
+                int color = (lx + ly) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
                 context.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, color);
             }
         }
 
         // Render highlights
         if (gameLogic.getSelectedX() != -1) {
-            for (int y = 0; y < 8; y++) {
-                for (int x = 0; x < 8; x++) {
-                    int highlightColor = highlighter.getHighlightColor(x, y);
+            for (int ry = 0; ry < 8; ry++) {
+                int ly = isFlipped ? 7 - ry : ry;
+                for (int rx = 0; rx < 8; rx++) {
+                    int lx = rx;
+                    int highlightColor = highlighter.getHighlightColor(lx, ly);
                     if (highlightColor != 0) {
-                        int px = offsetX + x * CELL_SIZE;
-                        int py = offsetY + y * CELL_SIZE;
+                        int px = offsetX + rx * CELL_SIZE;
+                        int py = offsetY + ry * CELL_SIZE;
                         context.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, highlightColor);
                     }
                 }
@@ -177,15 +183,19 @@ public class ChessScreen extends ArcadeGame {
 
         // Render pieces with animation
         MatrixStack matrixStack = context.getMatrices();
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                int piece = gameLogic.getBoard()[y][x];
+        for (int ly = 0; ly < 8; ly++) {
+            for (int lx = 0; lx < 8; lx++) {
+                int piece = gameLogic.getBoard()[ly][lx];
                 if (piece != 0) {
-                    pieceRenderX[y][x] = MathHelper.lerp(delta * 0.25f, pieceRenderX[y][x], x);
-                    pieceRenderY[y][x] = MathHelper.lerp(delta * 0.25f, pieceRenderY[y][x], y);
+                    pieceRenderX[ly][lx] = MathHelper.lerp(delta * 0.25f, pieceRenderX[ly][lx], lx);
+                    pieceRenderY[ly][lx] = MathHelper.lerp(delta * 0.25f, pieceRenderY[ly][lx], ly);
 
-                    float pixelX = pieceRenderX[y][x] * CELL_SIZE + offsetX + 3;
-                    float pixelY = pieceRenderY[y][x] * CELL_SIZE + offsetY + 3;
+                    float animLX = pieceRenderX[ly][lx];
+                    float animLY = pieceRenderY[ly][lx];
+                    float animRX = animLX;
+                    float animRY = isFlipped ? 7 - animLY : animLY;
+                    float pixelX = animRX * CELL_SIZE + offsetX + 3;
+                    float pixelY = animRY * CELL_SIZE + offsetY + 3;
                     int baseX = (int) pixelX;
                     int baseY = (int) pixelY;
                     float fracX = pixelX - baseX;
@@ -218,16 +228,24 @@ public class ChessScreen extends ArcadeGame {
         // Render captured pieces
         Map<Integer, Integer> capturedCounts = calculateCapturedPieces();
 
-        int whiteIndex = 0;
-        for (int piece : List.of(12, 8, 9, 7, 10)) {
+        List<Integer> leftPieces = isFlipped ? List.of(6, 2, 3, 1, 4) : List.of(12, 8, 9, 7, 10);
+        List<Integer> rightPieces = isFlipped ? List.of(12, 8, 9, 7, 10) : List.of(6, 2, 3, 1, 4);
+
+        int leftIndex = 0;
+        for (int piece : leftPieces) {
             int count = Math.min(capturedCounts.getOrDefault(piece, 0), 15);
             for (int i = 0; i < count; i++) {
-                int col = whiteIndex % 2;
-                int row = whiteIndex / 2;
+                int col = leftIndex % 2;
+                int row = leftIndex / 2;
                 int px = offsetX - (CAPTURED_PIECE_SIZE + 10) - col * (CAPTURED_PIECE_SIZE + 5);
                 int py = offsetY + row * (CAPTURED_PIECE_SIZE + 5);
                 matrixStack.push();
                 switch (piece) {
+                    case 1 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_ROOK, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 2 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KNIGHT, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 3 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_BISHOP, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 4 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_QUEEN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 6 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_PAWN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                     case 7 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_ROOK, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                     case 8 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KNIGHT, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                     case 9 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_BISHOP, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
@@ -235,16 +253,16 @@ public class ChessScreen extends ArcadeGame {
                     case 12 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_PAWN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                 }
                 matrixStack.pop();
-                whiteIndex++;
+                leftIndex++;
             }
         }
 
-        int blackIndex = 0;
-        for (int piece : List.of(6, 2, 3, 1, 4)) {
+        int rightIndex = 0;
+        for (int piece : rightPieces) {
             int count = Math.min(capturedCounts.getOrDefault(piece, 0), 15);
             for (int i = 0; i < count; i++) {
-                int col = blackIndex % 2;
-                int row = blackIndex / 2;
+                int col = rightIndex % 2;
+                int row = rightIndex / 2;
                 int px = offsetX + 8 * CELL_SIZE + 10 + col * (CAPTURED_PIECE_SIZE + 5);
                 int py = offsetY + row * (CAPTURED_PIECE_SIZE + 5);
                 matrixStack.push();
@@ -254,26 +272,38 @@ public class ChessScreen extends ArcadeGame {
                     case 3 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_BISHOP, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                     case 4 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_QUEEN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                     case 6 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_PAWN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 7 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_ROOK, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 8 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KNIGHT, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 9 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_BISHOP, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 10 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_QUEEN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 12 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_PAWN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
                 }
                 matrixStack.pop();
-                blackIndex++;
+                rightIndex++;
             }
         }
 
         // Board coordinates
         String letters = "abcdefgh";
         for (int i = 0; i < 8; i++) {
-            int cellColorForLetter = ((i + 7) % 2 == 0) ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
-            int letterColor = (cellColorForLetter == WHITE_CELL_COLOR) ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
+            int letterIdx = i;
+            String letterStr = String.valueOf(letters.charAt(letterIdx));
             int pxLetter = offsetX + i * CELL_SIZE + 4;
             int pyLetter = offsetY + 8 * CELL_SIZE + 2;
-            context.drawText(this.textRenderer, String.valueOf(letters.charAt(i)), pxLetter + 20, pyLetter - 10, letterColor, false);
+            int lyBottom = isFlipped ? 0 : 7;
+            int lxLetter = i;
+            int cellColorForLetter = (lxLetter + lyBottom) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
+            int letterColor = cellColorForLetter == WHITE_CELL_COLOR ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
+            context.drawText(this.textRenderer, letterStr, pxLetter + 20, pyLetter - 10, letterColor, false);
 
-            int cellColorForNumber = ((i) % 2 == 0) ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
-            int numberColor = (cellColorForNumber == WHITE_CELL_COLOR) ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
             int pxNumber = offsetX - 10;
             int pyNumber = offsetY + i * CELL_SIZE + 8;
-            context.drawText(this.textRenderer, Integer.toString(8 - i), pxNumber + 11, pyNumber - 7, numberColor, false);
+            String numStr = isFlipped ? Integer.toString(i + 1) : Integer.toString(8 - i);
+            int lyNumber = isFlipped ? 7 - i : i;
+            int lxNumber = 0;
+            int cellColorForNumber = (lxNumber + lyNumber) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
+            int numberColor = cellColorForNumber == WHITE_CELL_COLOR ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
+            context.drawText(this.textRenderer, numStr, pxNumber + 11, pyNumber - 7, numberColor, false);
         }
 
         // Game status
@@ -297,8 +327,12 @@ public class ChessScreen extends ArcadeGame {
             return true;
         }
 
-        int gridX = (int) ((mouseX - offsetX) / CELL_SIZE);
-        int gridY = (int) ((mouseY - offsetY) / CELL_SIZE);
+        int renderGridX = (int) ((mouseX - offsetX) / CELL_SIZE);
+        int renderGridY = (int) ((mouseY - offsetY) / CELL_SIZE);
+
+        boolean isFlipped = getLocalPlayerId() == 2;
+        int gridX = renderGridX;
+        int gridY = isFlipped ? 7 - renderGridY : renderGridY;
 
         if (gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8) {
             int localPlayerId = getLocalPlayerId();

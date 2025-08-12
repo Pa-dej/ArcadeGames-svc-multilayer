@@ -84,8 +84,8 @@ public class GameLobbyScreen extends Screen {
 
     @Override
     public void close() {
-        BlockClickHandler.leaveLobby(lobbyPos);
         super.close();
+        BlockClickHandler.leaveLobby(lobbyPos);
     }
 }
 
