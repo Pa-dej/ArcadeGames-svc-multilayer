@@ -5,7 +5,8 @@ import me.padej.arcadegames_svc.voice.data.IVoiceData;
 public record ChessStateData(int chunkIndex, int[] cellsChunk, int currentPlayer, int winner,
                              boolean whiteKingMoved, boolean blackKingMoved,
                              boolean whiteRookA1Moved, boolean whiteRookH1Moved,
-                             boolean blackRookA8Moved, boolean blackRookH8Moved) implements IVoiceData {
+                             boolean blackRookA8Moved, boolean blackRookH8Moved,
+                             boolean gameOver, int enPassantTargetX, int enPassantTargetY) implements IVoiceData {
     public static final int ID = 13;
     private static final int CELLS_PER_CHUNK = 11;
 
@@ -29,6 +30,16 @@ public record ChessStateData(int chunkIndex, int[] cellsChunk, int currentPlayer
         packed |= ((long) (currentPlayer & 0b11)) << 53;
         // Pack winner (2 bits at bit 55)
         packed |= ((long) (winner & 0b11)) << 55;
+        // Pack gameOver (1 bit at bit 57)
+        packed |= ((long) (gameOver ? 1 : 0)) << 57;
+        // Pack enPassantTargetX (4 bits at bit 58): X + 1 (-1 -> 0, 0 -> 1, 7 -> 8)
+        int packedX = enPassantTargetX + 1;
+        packed |= ((long) (packedX & 0xf)) << 58;
+        // Pack enPassantTargetY code (2 bits at bit 62): 0 = -1, 1 = 2, 2 = 5
+        int yCode = 0;
+        if (enPassantTargetY == 2) yCode = 1;
+        else if (enPassantTargetY == 5) yCode = 2;
+        packed |= ((long) (yCode & 0b11)) << 62;
         return IVoiceData.applyId(packed, getId());
     }
 
@@ -46,7 +57,15 @@ public record ChessStateData(int chunkIndex, int[] cellsChunk, int currentPlayer
         int chunkIndex = (int) ((packed >> 50) & 0b111);
         int currentPlayer = (int) ((packed >> 53) & 0b11);
         int winner = (int) ((packed >> 55) & 0b11);
-        return new ChessStateData(chunkIndex, cellsChunk, currentPlayer, winner, whiteKingMoved, blackKingMoved, whiteRookA1Moved, whiteRookH1Moved, blackRookA8Moved, blackRookH8Moved);
+        boolean gameOver = ((packed >> 57) & 1) == 1;
+        // Unpack enPassantTargetX
+        int packedX = (int) ((packed >> 58) & 0xf);
+        int enPassantTargetX = (packedX == 0) ? -1 : packedX - 1;
+        // Unpack enPassantTargetY
+        int yCode = (int) ((packed >> 62) & 0b11);
+        int enPassantTargetY = (packedX == 0) ? -1 : (yCode == 1 ? 2 : (yCode == 2 ? 5 : -1));
+        return new ChessStateData(chunkIndex, cellsChunk, currentPlayer, winner, whiteKingMoved, blackKingMoved,
+                whiteRookA1Moved, whiteRookH1Moved, blackRookA8Moved, blackRookH8Moved, gameOver, enPassantTargetX, enPassantTargetY);
     }
 
     @Override
