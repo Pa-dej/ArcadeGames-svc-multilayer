@@ -1,5 +1,6 @@
 package me.padej.arcadegames_svc.screen.chess;
 
+import me.padej.arcadegames_svc.ArcadeGames;
 import me.padej.arcadegames_svc.lobby.LobbyManager;
 import me.padej.arcadegames_svc.screen.ArcadeGame;
 import me.padej.arcadegames_svc.util.DrawUtil;
@@ -10,19 +11,25 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import org.joml.Vector2i;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ChessScreen extends ArcadeGame {
     private static final int WHITE_CELL_COLOR = 0xFF_c3d7d8;
     private static final int BLACK_CELL_COLOR = 0xFF_4e5e80;
+    private static final Vector2i BACKGROUND_SCALE = new Vector2i(350, 271);
+    private static final Vector2i OUTLINE_SCALE = new Vector2i(368, 289);
     private static final int CELL_SIZE = 30;
     private static final int CELLS_PER_CHUNK = 11;
+    private static final int CAPTURED_PIECE_SIZE = 20;
 
     private final ChessGameLogic gameLogic;
     private final ChessHighlighter highlighter;
@@ -61,7 +68,7 @@ public class ChessScreen extends ArcadeGame {
             }
         }
         gameLogic.initBoard();
-        highlighter.clearHighlights(); // Clear highlights on board init
+        highlighter.clearHighlights();
     }
 
     @Override
@@ -77,12 +84,72 @@ public class ChessScreen extends ArcadeGame {
             }
             broadcastState();
         }
-        highlighter.clearHighlights(); // Ensure highlights are cleared on init
+        highlighter.clearHighlights();
+    }
+
+    private Map<Integer, Integer> calculateCapturedPieces() {
+        Map<Integer, Integer> pieceCounts = new HashMap<>();
+        // Initial piece counts
+        pieceCounts.put(1, 2); // White rooks
+        pieceCounts.put(2, 2); // White knights
+        pieceCounts.put(3, 2); // White bishops
+        pieceCounts.put(4, 1); // White queen
+        pieceCounts.put(5, 1); // White king
+        pieceCounts.put(6, 8); // White pawns
+        pieceCounts.put(7, 2); // Black rooks
+        pieceCounts.put(8, 2); // Black knights
+        pieceCounts.put(9, 2); // Black bishops
+        pieceCounts.put(10, 1); // Black queen
+        pieceCounts.put(11, 1); // Black king
+        pieceCounts.put(12, 8); // Black pawns
+
+        // Count pieces on the board
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                int piece = gameLogic.getBoard()[y][x];
+                if (piece != 0) {
+                    pieceCounts.merge(piece, -1, Integer::sum);
+                }
+            }
+        }
+
+        // Handle pawn promotions
+        int extraWhiteQueens = pieceCounts.getOrDefault(4, 0) - 1;
+        int extraBlackQueens = pieceCounts.getOrDefault(10, 0) - 1;
+        if (extraWhiteQueens > 0) {
+            pieceCounts.merge(6, -extraWhiteQueens, Integer::sum);
+            pieceCounts.put(4, 1);
+        }
+        if (extraBlackQueens > 0) {
+            pieceCounts.merge(12, -extraBlackQueens, Integer::sum);
+            pieceCounts.put(10, 1);
+        }
+
+        return pieceCounts;
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
+
+        // Render background and outline
+        int halfW = width / 2;
+        int halfH = height / 2;
+        context.fill(
+                halfW - BACKGROUND_SCALE.x / 2,
+                halfH - BACKGROUND_SCALE.y / 2,
+                halfW - BACKGROUND_SCALE.x / 2 + BACKGROUND_SCALE.x,
+                halfH - BACKGROUND_SCALE.y / 2 + BACKGROUND_SCALE.y,
+                0xDE_2b2d30
+        );
+        DrawUtil.simpleDrawTexture(
+                context,
+                ChessTextures.OUTLINE,
+                halfW - OUTLINE_SCALE.x / 2,
+                halfH - OUTLINE_SCALE.y / 2,
+                OUTLINE_SCALE.x,
+                OUTLINE_SCALE.y
+        );
 
         // Render board
         for (int y = 0; y < 8; y++) {
@@ -129,30 +196,18 @@ public class ChessScreen extends ArcadeGame {
                     matrixStack.translate(fracX, fracY, 0);
 
                     switch (piece) {
-                        case 1 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_ROOK, baseX, baseY, texSize, texSize);
-                        case 2 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KNIGHT, baseX, baseY, texSize, texSize);
-                        case 3 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_BISHOP, baseX, baseY, texSize, texSize);
-                        case 4 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_QUEEN, baseX, baseY, texSize, texSize);
-                        case 5 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KING, baseX, baseY, texSize, texSize);
-                        case 6 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_PAWN, baseX, baseY, texSize, texSize);
-                        case 7 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_ROOK, baseX, baseY, texSize, texSize);
-                        case 8 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KNIGHT, baseX, baseY, texSize, texSize);
-                        case 9 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_BISHOP, baseX, baseY, texSize, texSize);
-                        case 10 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_QUEEN, baseX, baseY, texSize, texSize);
-                        case 11 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KING, baseX, baseY, texSize, texSize);
-                        case 12 ->
-                                DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_PAWN, baseX, baseY, texSize, texSize);
+                        case 1 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_ROOK, baseX, baseY, texSize, texSize);
+                        case 2 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KNIGHT, baseX, baseY, texSize, texSize);
+                        case 3 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_BISHOP, baseX, baseY, texSize, texSize);
+                        case 4 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_QUEEN, baseX, baseY, texSize, texSize);
+                        case 5 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KING, baseX, baseY, texSize, texSize);
+                        case 6 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_PAWN, baseX, baseY, texSize, texSize);
+                        case 7 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_ROOK, baseX, baseY, texSize, texSize);
+                        case 8 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KNIGHT, baseX, baseY, texSize, texSize);
+                        case 9 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_BISHOP, baseX, baseY, texSize, texSize);
+                        case 10 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_QUEEN, baseX, baseY, texSize, texSize);
+                        case 11 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KING, baseX, baseY, texSize, texSize);
+                        case 12 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_PAWN, baseX, baseY, texSize, texSize);
                     }
 
                     matrixStack.pop();
@@ -160,31 +215,75 @@ public class ChessScreen extends ArcadeGame {
             }
         }
 
+        // Render captured pieces
+        Map<Integer, Integer> capturedCounts = calculateCapturedPieces();
+
+        int whiteIndex = 0;
+        for (int piece : List.of(12, 8, 9, 7, 10)) {
+            int count = Math.min(capturedCounts.getOrDefault(piece, 0), 15);
+            for (int i = 0; i < count; i++) {
+                int col = whiteIndex % 2;
+                int row = whiteIndex / 2;
+                int px = offsetX - (CAPTURED_PIECE_SIZE + 10) - col * (CAPTURED_PIECE_SIZE + 5);
+                int py = offsetY + row * (CAPTURED_PIECE_SIZE + 5);
+                matrixStack.push();
+                switch (piece) {
+                    case 7 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_ROOK, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 8 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KNIGHT, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 9 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_BISHOP, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 10 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_QUEEN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 12 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_PAWN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                }
+                matrixStack.pop();
+                whiteIndex++;
+            }
+        }
+
+        int blackIndex = 0;
+        for (int piece : List.of(6, 2, 3, 1, 4)) {
+            int count = Math.min(capturedCounts.getOrDefault(piece, 0), 15);
+            for (int i = 0; i < count; i++) {
+                int col = blackIndex % 2;
+                int row = blackIndex / 2;
+                int px = offsetX + 8 * CELL_SIZE + 10 + col * (CAPTURED_PIECE_SIZE + 5);
+                int py = offsetY + row * (CAPTURED_PIECE_SIZE + 5);
+                matrixStack.push();
+                switch (piece) {
+                    case 1 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_ROOK, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 2 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KNIGHT, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 3 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_BISHOP, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 4 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_QUEEN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                    case 6 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_PAWN, px, py, CAPTURED_PIECE_SIZE, CAPTURED_PIECE_SIZE);
+                }
+                matrixStack.pop();
+                blackIndex++;
+            }
+        }
+
+        // Board coordinates
         String letters = "abcdefgh";
         for (int i = 0; i < 8; i++) {
             int cellColorForLetter = ((i + 7) % 2 == 0) ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
-            int letterColor = (cellColorForLetter == WHITE_CELL_COLOR) ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
-
+            int letterColor = (cellColorForLetter == WHITE_CELL_COLOR) ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
             int pxLetter = offsetX + i * CELL_SIZE + 4;
             int pyLetter = offsetY + 8 * CELL_SIZE + 2;
             context.drawText(this.textRenderer, String.valueOf(letters.charAt(i)), pxLetter + 20, pyLetter - 10, letterColor, false);
 
             int cellColorForNumber = ((i) % 2 == 0) ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
-            int numberColor = (cellColorForNumber == WHITE_CELL_COLOR) ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
-
+            int numberColor = (cellColorForNumber == WHITE_CELL_COLOR) ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
             int pxNumber = offsetX - 10;
             int pyNumber = offsetY + i * CELL_SIZE + 8;
             context.drawText(this.textRenderer, Integer.toString(8 - i), pxNumber + 11, pyNumber - 7, numberColor, false);
         }
 
-        // Render game status
+        // Game status
         String info;
         if (gameLogic.isGameOver()) {
             info = (gameLogic.getWinner() == 3) ? "Draw" : (gameLogic.getWinner() == 1 ? "White wins" : "Black wins");
         } else {
             info = "Turn: " + (gameLogic.getCurrentPlayer() == 1 ? "White" : "Black");
         }
-        context.drawText(this.textRenderer, info, this.width / 2 - info.length() * 3, offsetY + CELL_SIZE * 8 + 5, 0xFFFFFF, false);
+        context.drawText(this.textRenderer, info, halfW - info.length() * 3, offsetY + CELL_SIZE * 8 + 5, 0xFFFFFF, false);
     }
 
     @Override
@@ -217,15 +316,15 @@ public class ChessScreen extends ArcadeGame {
                         if (gameLogic.isValidMove(move.fromX(), move.fromY(), move.toX(), move.toY(), move.playerId())) {
                             processMove(move.toX(), move.toY(), move.playerId());
                             gameLogic.clearSelection();
-                            highlighter.clearHighlights(); // Clear highlights after successful move
+                            highlighter.clearHighlights();
                         } else {
                             gameLogic.clearSelection();
-                            highlighter.clearHighlights(); // Clear highlights on invalid move
+                            highlighter.clearHighlights();
                         }
                     } else {
                         LocalVoicePacket.send(move);
                         gameLogic.clearSelection();
-                        highlighter.clearHighlights(); // Clear highlights after sending move
+                        highlighter.clearHighlights();
                     }
                 }
             }
@@ -258,6 +357,11 @@ public class ChessScreen extends ArcadeGame {
                 pieceRenderY[fromY][rookToX] = fromY;
             }
             broadcastState();
+            if (gameLogic.isGameOver()) {
+                deleteGameState();
+            } else {
+                saveGameState();
+            }
         }
     }
 
@@ -281,11 +385,11 @@ public class ChessScreen extends ArcadeGame {
         }
     }
 
-    private boolean saveGameState() {
+    private void saveGameState() {
         try {
             Path dir = Paths.get("config/arcadegames_svc/chess");
             Files.createDirectories(dir);
-            Path file = dir.resolve(lobbyPos.toString().replace(":", "_") + ".dat");
+            Path file = dir.resolve("chess.dat");
             try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(file))) {
                 int[] cells = new int[64];
                 for (int i = 0; i < 64; i++) {
@@ -306,16 +410,23 @@ public class ChessScreen extends ArcadeGame {
                             gameLogic.getEnPassantTargetX(), gameLogic.getEnPassantTargetY());
                     out.writeLong(state.pack());
                 }
-                return true;
             }
         } catch (IOException e) {
-            e.printStackTrace();
-            return false;
+            ArcadeGames.LOGGER.error("saveGameState: {}", String.valueOf(e));
+        }
+    }
+
+    private void deleteGameState() {
+        try {
+            Path file = Paths.get("config/arcadegames_svc/chess/chess.dat");
+            Files.deleteIfExists(file);
+        } catch (IOException e) {
+            ArcadeGames.LOGGER.error("deleteGameState: {}", String.valueOf(e));
         }
     }
 
     private boolean loadGameState() {
-        Path file = Paths.get("config/arcadegames_svc/chess", lobbyPos.toString().replace(":", "_") + ".dat");
+        Path file = Paths.get("config/arcadegames_svc/chess/chess.dat");
         if (!Files.exists(file)) {
             return false;
         }
@@ -330,7 +441,7 @@ public class ChessScreen extends ArcadeGame {
             }
             return true;
         } catch (IOException e) {
-            e.printStackTrace();
+            ArcadeGames.LOGGER.error("loadGameState: {}", String.valueOf(e));
             return false;
         }
     }
@@ -341,7 +452,7 @@ public class ChessScreen extends ArcadeGame {
         if (gameLogic.isValidMove(move.fromX(), move.fromY(), move.toX(), move.toY(), move.playerId())) {
             gameLogic.setSelected(move.fromX(), move.fromY());
             processMove(move.toX(), move.toY(), move.playerId());
-            highlighter.clearHighlights(); // Clear highlights after processing remote move
+            highlighter.clearHighlights();
         }
     }
 
@@ -368,7 +479,6 @@ public class ChessScreen extends ArcadeGame {
         if (receivedChunkMask == 63) {
             applyPendingBoard();
             receivedChunkMask = 0;
-            // Update highlights for the current player after applying new state
             if (gameLogic.getSelectedX() != -1 && gameLogic.getSelectedY() != -1) {
                 highlighter.updateHighlights(getLocalPlayerId());
             } else {

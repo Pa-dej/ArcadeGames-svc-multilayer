@@ -17,4 +17,6 @@ final class ChessTextures extends TextureStorage {
     static final Identifier WHITE_PAWN = id("textures/chess/white_pawn.png");
     static final Identifier WHITE_QUEEN = id("textures/chess/white_queen.png");
     static final Identifier WHITE_ROOK = id("textures/chess/white_rook.png");
+
+    static final Identifier OUTLINE = id("textures/chess/outline.png");
 }
