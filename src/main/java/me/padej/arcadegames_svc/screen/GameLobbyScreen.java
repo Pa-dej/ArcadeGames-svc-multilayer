@@ -33,17 +33,16 @@ public class GameLobbyScreen extends Screen {
     public void tick() {
         if (LobbyManager.areAllReady(lobbyPos)) {
             List<String> players = new ArrayList<>(LobbyManager.getPlayers(lobbyPos));
-            // Найти игрока с минимальным пингом
             String hostName = players.stream()
                     .min(Comparator.comparingInt(PlayerPingManager::getPing))
                     .orElse(players.getFirst());
 
-            // Сортируем игроков так, чтобы хост был первым
             players.remove(hostName);
             players.addFirst(hostName);
 
-            // Передаем в PongScreen список игроков и хоста
             MinecraftClient.getInstance().setScreen(game);
+            BlockClickHandler.leaveLobby(lobbyPos);
+            LobbyManager.setReady(lobbyPos, MinecraftClient.getInstance().player.getName().getString(), false);
         }
     }
 
@@ -84,8 +83,9 @@ public class GameLobbyScreen extends Screen {
 
     @Override
     public void close() {
-        super.close();
         BlockClickHandler.leaveLobby(lobbyPos);
+        LobbyManager.setReady(lobbyPos, MinecraftClient.getInstance().player.getName().getString(), false);
+        super.close();
     }
 }
 
