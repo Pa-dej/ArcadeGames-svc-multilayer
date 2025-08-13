@@ -12,7 +12,7 @@ public class ChessGameLogic {
     private boolean blackKingMoved = false;
     private boolean blackRookA8Moved = false;
     private boolean blackRookH8Moved = false;
-    private int enPassantTargetX = -1; // Track en passant target square
+    private int enPassantTargetX = -1;
     private int enPassantTargetY = -1;
 
     public void initBoard() {
@@ -51,7 +51,7 @@ public class ChessGameLogic {
         clearSelection();
     }
 
-    public boolean processMove(int fromX, int fromY, int toX, int toY, int player) {
+    public boolean processMove(int fromX, int fromY, int toX, int toY, int player, int promotionPiece) {
         if (!isValidMove(fromX, fromY, toX, toY, player)) return false;
 
         int piece = board[fromY][fromX];
@@ -68,10 +68,20 @@ public class ChessGameLogic {
         board[fromY][fromX] = 0;
 
         // Handle pawn promotion
-        if (piece == 6 && toY == 0) {
-            board[toY][toX] = 4; // Promote to white queen
-        } else if (piece == 12 && toY == 7) {
-            board[toY][toX] = 10; // Promote to black queen
+        if (piece == 6 && toY == 0 && player == 1) {
+            board[toY][toX] = switch (promotionPiece) {
+                case 1 -> 1; // White rook
+                case 2 -> 2; // White knight
+                case 3 -> 3; // White bishop
+                default -> 4; // White queen (default)
+            };
+        } else if (piece == 12 && toY == 7 && player == 2) {
+            board[toY][toX] = switch (promotionPiece) {
+                case 7 -> 7; // Black rook
+                case 8 -> 8; // Black knight
+                case 9 -> 9; // Black bishop
+                default -> 10; // Black queen (default)
+            };
         }
 
         // Update en passant target
@@ -312,5 +322,10 @@ public class ChessGameLogic {
 
     public void setEnPassantTargetY(int enPassantTargetY) {
         this.enPassantTargetY = enPassantTargetY;
+    }
+
+    public boolean isPawnPromotion(int fromX, int fromY, int toX, int toY, int player) {
+        int piece = board[fromY][fromX];
+        return (piece == 6 && player == 1 && toY == 0) || (piece == 12 && player == 2 && toY == 7);
     }
 }

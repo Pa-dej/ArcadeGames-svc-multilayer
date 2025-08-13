@@ -30,6 +30,8 @@ public class ChessScreen extends ArcadeGame {
     private static final int CELL_SIZE = 30;
     private static final int CELLS_PER_CHUNK = 11;
     private static final int CAPTURED_PIECE_SIZE = 20;
+    private static final int PROMOTION_BUTTON_SIZE = 30;
+    private static final int PROMOTION_BUTTON_SPACING = 5;
 
     private final ChessGameLogic gameLogic;
     private final ChessHighlighter highlighter;
@@ -42,6 +44,9 @@ public class ChessScreen extends ArcadeGame {
     private String blackPlayer = null;
     private final BlockPos lobbyPos;
     private int offsetX, offsetY;
+    private ChessMoveData pendingPromotionMove = null;
+    private boolean showPromotionMenu = false;
+    private int promotionX, promotionY;
 
     public ChessScreen(BlockPos lobbyPos) {
         super("Chess", 9602);
@@ -69,6 +74,8 @@ public class ChessScreen extends ArcadeGame {
         }
         gameLogic.initBoard();
         highlighter.clearHighlights();
+        showPromotionMenu = false;
+        pendingPromotionMove = null;
     }
 
     @Override
@@ -89,7 +96,6 @@ public class ChessScreen extends ArcadeGame {
 
     private Map<Integer, Integer> calculateCapturedPieces() {
         Map<Integer, Integer> pieceCounts = new HashMap<>();
-        // Initial piece counts
         pieceCounts.put(1, 2); // White rooks
         pieceCounts.put(2, 2); // White knights
         pieceCounts.put(3, 2); // White bishops
@@ -103,7 +109,6 @@ public class ChessScreen extends ArcadeGame {
         pieceCounts.put(11, 1); // Black king
         pieceCounts.put(12, 8); // Black pawns
 
-        // Count pieces on the board
         for (int y = 0; y < 8; y++) {
             for (int x = 0; x < 8; x++) {
                 int piece = gameLogic.getBoard()[y][x];
@@ -113,7 +118,6 @@ public class ChessScreen extends ArcadeGame {
             }
         }
 
-        // Handle pawn promotions
         int extraWhiteQueens = pieceCounts.getOrDefault(4, 0) - 1;
         int extraBlackQueens = pieceCounts.getOrDefault(10, 0) - 1;
         if (extraWhiteQueens > 0) {
@@ -157,10 +161,9 @@ public class ChessScreen extends ArcadeGame {
         for (int ry = 0; ry < 8; ry++) {
             int ly = isFlipped ? 7 - ry : ry;
             for (int rx = 0; rx < 8; rx++) {
-                int lx = rx;
                 int px = offsetX + rx * CELL_SIZE;
                 int py = offsetY + ry * CELL_SIZE;
-                int color = (lx + ly) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
+                int color = (rx + ly) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
                 context.fill(px, py, px + CELL_SIZE, py + CELL_SIZE, color);
             }
         }
@@ -170,8 +173,7 @@ public class ChessScreen extends ArcadeGame {
             for (int ry = 0; ry < 8; ry++) {
                 int ly = isFlipped ? 7 - ry : ry;
                 for (int rx = 0; rx < 8; rx++) {
-                    int lx = rx;
-                    int highlightColor = highlighter.getHighlightColor(lx, ly);
+                    int highlightColor = highlighter.getHighlightColor(rx, ly);
                     if (highlightColor != 0) {
                         int px = offsetX + rx * CELL_SIZE;
                         int py = offsetY + ry * CELL_SIZE;
@@ -192,9 +194,8 @@ public class ChessScreen extends ArcadeGame {
 
                     float animLX = pieceRenderX[ly][lx];
                     float animLY = pieceRenderY[ly][lx];
-                    float animRX = animLX;
                     float animRY = isFlipped ? 7 - animLY : animLY;
-                    float pixelX = animRX * CELL_SIZE + offsetX + 3;
+                    float pixelX = animLX * CELL_SIZE + offsetX + 3;
                     float pixelY = animRY * CELL_SIZE + offsetY + 3;
                     int baseX = (int) pixelX;
                     int baseY = (int) pixelY;
@@ -283,16 +284,37 @@ public class ChessScreen extends ArcadeGame {
             }
         }
 
+        // Render promotion selection menu (horizontal)
+        if (showPromotionMenu) {
+            int menuX = offsetX + promotionX * CELL_SIZE;
+            int menuY = offsetY + (isFlipped ? 7 - promotionY : promotionY) * CELL_SIZE - PROMOTION_BUTTON_SIZE - PROMOTION_BUTTON_SPACING;
+            int[] promotionPieces = getLocalPlayerId() == 1 ? new int[]{4, 1, 2, 3} : new int[]{10, 7, 8, 9}; // Queen, Rook, Knight, Bishop
+            for (int i = 0; i < 4; i++) {
+                int buttonX = menuX + i * (PROMOTION_BUTTON_SIZE + PROMOTION_BUTTON_SPACING);
+                context.fill(buttonX, menuY, buttonX + PROMOTION_BUTTON_SIZE, menuY + PROMOTION_BUTTON_SIZE, 0xFF_AAAAAA);
+                matrixStack.push();
+                switch (promotionPieces[i]) {
+                    case 1 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_ROOK, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 2 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_KNIGHT, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 3 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_BISHOP, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 4 -> DrawUtil.simpleDrawTexture(context, ChessTextures.WHITE_QUEEN, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 7 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_ROOK, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 8 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_KNIGHT, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 9 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_BISHOP, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                    case 10 -> DrawUtil.simpleDrawTexture(context, ChessTextures.BLACK_QUEEN, buttonX + 2, menuY + 2, PROMOTION_BUTTON_SIZE - 4, PROMOTION_BUTTON_SIZE - 4);
+                }
+                matrixStack.pop();
+            }
+        }
+
         // Board coordinates
         String letters = "abcdefgh";
         for (int i = 0; i < 8; i++) {
-            int letterIdx = i;
-            String letterStr = String.valueOf(letters.charAt(letterIdx));
+            String letterStr = String.valueOf(letters.charAt(i));
             int pxLetter = offsetX + i * CELL_SIZE + 4;
             int pyLetter = offsetY + 8 * CELL_SIZE + 2;
             int lyBottom = isFlipped ? 0 : 7;
-            int lxLetter = i;
-            int cellColorForLetter = (lxLetter + lyBottom) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
+            int cellColorForLetter = (i + lyBottom) % 2 == 0 ? WHITE_CELL_COLOR : BLACK_CELL_COLOR;
             int letterColor = cellColorForLetter == WHITE_CELL_COLOR ? BLACK_CELL_COLOR : WHITE_CELL_COLOR;
             context.drawText(this.textRenderer, letterStr, pxLetter + 20, pyLetter - 10, letterColor, false);
 
@@ -310,6 +332,8 @@ public class ChessScreen extends ArcadeGame {
         String info;
         if (gameLogic.isGameOver()) {
             info = (gameLogic.getWinner() == 3) ? "Draw" : (gameLogic.getWinner() == 1 ? "White wins" : "Black wins");
+        } else if (showPromotionMenu) {
+            info = "Select promotion piece";
         } else {
             info = "Turn: " + (gameLogic.getCurrentPlayer() == 1 ? "White" : "Black");
         }
@@ -327,36 +351,71 @@ public class ChessScreen extends ArcadeGame {
             return true;
         }
 
+        if (showPromotionMenu) {
+            int menuX = offsetX + promotionX * CELL_SIZE;
+            int menuY = offsetY + (getLocalPlayerId() == 2 ? 7 - promotionY : promotionY) * CELL_SIZE - PROMOTION_BUTTON_SIZE - PROMOTION_BUTTON_SPACING;
+            int[] promotionPieces = getLocalPlayerId() == 1 ? new int[]{4, 1, 2, 3} : new int[]{10, 7, 8, 9};
+            for (int i = 0; i < 4; i++) {
+                int buttonX = menuX + i * (PROMOTION_BUTTON_SIZE + PROMOTION_BUTTON_SPACING);
+                if (mouseX >= buttonX && mouseX < buttonX + PROMOTION_BUTTON_SIZE &&
+                        mouseY >= menuY && mouseY < menuY + PROMOTION_BUTTON_SIZE) {
+                    int selectedPiece = promotionPieces[i];
+                    if (isHost()) {
+                        processMove(pendingPromotionMove.toX(), pendingPromotionMove.toY(), pendingPromotionMove.playerId(), selectedPiece);
+                    } else {
+                        LocalVoicePacket.send(new ChessMoveData(
+                                pendingPromotionMove.fromX(),
+                                pendingPromotionMove.fromY(),
+                                pendingPromotionMove.toX(),
+                                pendingPromotionMove.toY(),
+                                pendingPromotionMove.playerId(),
+                                selectedPiece
+                        ));
+                    }
+                    showPromotionMenu = false;
+                    pendingPromotionMove = null;
+                    gameLogic.clearSelection();
+                    highlighter.clearHighlights();
+                    return true;
+                }
+            }
+            return true;
+        }
+
         int renderGridX = (int) ((mouseX - offsetX) / CELL_SIZE);
         int renderGridY = (int) ((mouseY - offsetY) / CELL_SIZE);
 
         boolean isFlipped = getLocalPlayerId() == 2;
-        int gridX = renderGridX;
         int gridY = isFlipped ? 7 - renderGridY : renderGridY;
 
-        if (gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8) {
+        if (renderGridX >= 0 && renderGridX < 8 && gridY >= 0 && gridY < 8) {
             int localPlayerId = getLocalPlayerId();
             if (localPlayerId == 0) return true;
 
             if (gameLogic.getSelectedX() == -1 && gameLogic.getSelectedY() == -1) {
-                if (localPlayerId == gameLogic.getCurrentPlayer() && gameLogic.isValidPiece(gridX, gridY, localPlayerId)) {
-                    gameLogic.setSelected(gridX, gridY);
+                if (localPlayerId == gameLogic.getCurrentPlayer() && gameLogic.isValidPiece(renderGridX, gridY, localPlayerId)) {
+                    gameLogic.setSelected(renderGridX, gridY);
                     highlighter.updateHighlights(localPlayerId);
                 }
             } else {
                 if (localPlayerId == gameLogic.getCurrentPlayer()) {
-                    ChessMoveData move = new ChessMoveData(gameLogic.getSelectedX(), gameLogic.getSelectedY(), gridX, gridY, localPlayerId);
-                    if (isHost()) {
-                        if (gameLogic.isValidMove(move.fromX(), move.fromY(), move.toX(), move.toY(), move.playerId())) {
-                            processMove(move.toX(), move.toY(), move.playerId());
-                            gameLogic.clearSelection();
-                            highlighter.clearHighlights();
+                    ChessMoveData move = new ChessMoveData(gameLogic.getSelectedX(), gameLogic.getSelectedY(), renderGridX, gridY, localPlayerId, 0);
+                    if (gameLogic.isValidMove(move.fromX(), move.fromY(), move.toX(), move.toY(), move.playerId())) {
+                        if (gameLogic.isPawnPromotion(move.fromX(), move.fromY(), move.toX(), move.toY(), move.playerId())) {
+                            pendingPromotionMove = move;
+                            showPromotionMenu = true;
+                            promotionX = move.toX();
+                            promotionY = move.toY();
                         } else {
+                            if (isHost()) {
+                                processMove(move.toX(), move.toY(), move.playerId(), 0);
+                            } else {
+                                LocalVoicePacket.send(move);
+                            }
                             gameLogic.clearSelection();
                             highlighter.clearHighlights();
                         }
                     } else {
-                        LocalVoicePacket.send(move);
                         gameLogic.clearSelection();
                         highlighter.clearHighlights();
                     }
@@ -374,10 +433,10 @@ public class ChessScreen extends ArcadeGame {
         super.close();
     }
 
-    private void processMove(int toX, int toY, int player) {
+    private void processMove(int toX, int toY, int player, int promotionPiece) {
         int fromX = gameLogic.getSelectedX();
         int fromY = gameLogic.getSelectedY();
-        if (gameLogic.processMove(fromX, fromY, toX, toY, player)) {
+        if (gameLogic.processMove(fromX, fromY, toX, toY, player, promotionPiece)) {
             pieceRenderX[toY][toX] = fromX;
             pieceRenderY[toY][toX] = fromY;
 
@@ -485,7 +544,7 @@ public class ChessScreen extends ArcadeGame {
         if (move.playerId() != gameLogic.getCurrentPlayer()) return;
         if (gameLogic.isValidMove(move.fromX(), move.fromY(), move.toX(), move.toY(), move.playerId())) {
             gameLogic.setSelected(move.fromX(), move.fromY());
-            processMove(move.toX(), move.toY(), move.playerId());
+            processMove(move.toX(), move.toY(), move.playerId(), move.promotionPiece());
             highlighter.clearHighlights();
         }
     }
