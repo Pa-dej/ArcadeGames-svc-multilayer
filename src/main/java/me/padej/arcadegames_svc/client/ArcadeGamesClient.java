@@ -2,6 +2,7 @@ package me.padej.arcadegames_svc.client;
 
 import me.padej.arcadegames_svc.interact.BlockClickHandler;
 import me.padej.arcadegames_svc.screen.ArcadeGame;
+import me.padej.arcadegames_svc.screen.battleship.BattleshipScreen;
 import me.padej.arcadegames_svc.screen.chess.ChessScreen;
 import me.padej.arcadegames_svc.screen.tictactoe.TicTacToeScreen;
 import me.padej.arcadegames_svc.screen.pong.PongScreen;
@@ -25,6 +26,7 @@ public final class ArcadeGamesClient implements ClientModInitializer {
         GAMES.put("Pong", PongScreen::new);
         GAMES.put("Tic Tac Toe", TicTacToeScreen::new);
         GAMES.put("Chess", ChessScreen::new);
+        GAMES.put("Battleship", BattleshipScreen::new);
     }
 
     static {

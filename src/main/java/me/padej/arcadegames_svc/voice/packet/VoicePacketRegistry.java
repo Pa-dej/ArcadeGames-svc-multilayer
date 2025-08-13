@@ -2,10 +2,13 @@ package me.padej.arcadegames_svc.voice.packet;
 
 import de.maxhenkel.voicechat.voice.common.PlayerSoundPacket;
 import me.padej.arcadegames_svc.lobby.LobbyManager;
+import me.padej.arcadegames_svc.screen.battleship.BattleshipScreen;
 import me.padej.arcadegames_svc.screen.chess.ChessScreen;
 import me.padej.arcadegames_svc.screen.tictactoe.TicTacToeScreen;
 import me.padej.arcadegames_svc.screen.pong.PongScreen;
 import me.padej.arcadegames_svc.voice.data.IVoiceData;
+import me.padej.arcadegames_svc.voice.data.battleship.BattleshipMoveData;
+import me.padej.arcadegames_svc.voice.data.battleship.BattleshipStateData;
 import me.padej.arcadegames_svc.voice.data.chess.ChessMoveData;
 import me.padej.arcadegames_svc.voice.data.chess.ChessStateData;
 import me.padej.arcadegames_svc.voice.data.lobby.CreateLobbyData;
@@ -122,6 +125,19 @@ public final class VoicePacketRegistry {
             }
         });
 
+        register(BattleshipMoveData.ID, BattleshipMoveData::unpack, (data, sender) -> {
+            if (MinecraftClient.getInstance().currentScreen instanceof BattleshipScreen screen) {
+                BattleshipMoveData move = (BattleshipMoveData) data;
+                screen.onRemoteMove(move);
+            }
+        });
+
+        register(BattleshipStateData.ID, BattleshipStateData::unpack, (data, sender) -> {
+            if (MinecraftClient.getInstance().currentScreen instanceof BattleshipScreen screen) {
+                BattleshipStateData state = (BattleshipStateData) data;
+                screen.onRemoteState(state, state.chunkIndex() / 6); // Simplified grid index
+            }
+        });
     }
 
     private static String getPlayerName(UUID uuid) {
@@ -132,6 +148,6 @@ public final class VoicePacketRegistry {
                 return player.getName().getString();
             }
         }
-        return uuid.toString(); // fallback
+        return uuid.toString();
     }
 }
